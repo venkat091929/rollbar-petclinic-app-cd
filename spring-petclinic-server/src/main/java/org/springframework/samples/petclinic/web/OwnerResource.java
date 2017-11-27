@@ -15,8 +15,11 @@
  */
 package org.springframework.samples.petclinic.web;
 
-import java.io.FileNotFoundException;
+import static com.rollbar.notifier.config.ConfigBuilder.withAccessToken;
+
 import java.util.Collection;
+
+import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -34,9 +37,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.rollbar.notifier.Rollbar;
 
-import javax.validation.Valid;
-import static com.rollbar.notifier.config.ConfigBuilder.withAccessToken;
-
 /**
  * @author Juergen Hoeller
  * @author Ken Krebs
@@ -46,77 +46,78 @@ import static com.rollbar.notifier.config.ConfigBuilder.withAccessToken;
 @RestController
 public class OwnerResource extends AbstractResourceController {
 
-    private final ClinicService clinicService;
-    private final Rollbar rollbar = new Rollbar(withAccessToken("0bce2f27e4b84332b7873ce78ecb8f86").environment("production")
-			.handleUncaughtErrors(true).build());
+	private final ClinicService clinicService;
+	private final Rollbar rollbar = new Rollbar(withAccessToken("0bce2f27e4b84332b7873ce78ecb8f86")
+			.environment("production").handleUncaughtErrors(true).build());
 
-  
-    @Autowired
-    public OwnerResource(ClinicService clinicService) {
-        this.clinicService = clinicService;
-    }
+	@Autowired
+	public OwnerResource(ClinicService clinicService) {
+		this.clinicService = clinicService;
+	}
 
-    @InitBinder
-    public void setAllowedFields(WebDataBinder dataBinder) {
-        dataBinder.setDisallowedFields("id");
-    }
-    
-    private Owner retrieveOwner(int ownerId) {
-        return this.clinicService.findOwnerById(ownerId);
-    }
+	@InitBinder
+	public void setAllowedFields(WebDataBinder dataBinder) {
+		dataBinder.setDisallowedFields("id");
+	}
 
-    /**
-     * Create Owner
-     */
-    @RequestMapping(value = "/owners", method = RequestMethod.POST)
-    @ResponseStatus(HttpStatus.CREATED)
-    public void createOwner(@Valid @RequestBody Owner owner) {
-    	this.clinicService.saveOwner(owner);
-    }
-    
-    /**
-     * Read single Owner
-     */
-    @RequestMapping(value = "/owners/{ownerId}", method = RequestMethod.GET)
-    public Owner findOwner(@PathVariable("ownerId") int ownerId) {
-        return retrieveOwner(ownerId);
-    }
-    
-    /**
-     * Read List of Owners
-     */
-    @GetMapping("/owners/list")
-    public Collection<Owner> findAll() {
-    	throwError();
-        return clinicService.findAll();
-    }
-    private void throwError() {
+	private Owner retrieveOwner(int ownerId) {
+		return this.clinicService.findOwnerById(ownerId);
+	}
+
+	/**
+	 * Create Owner
+	 */
+	@RequestMapping(value = "/owners", method = RequestMethod.POST)
+	@ResponseStatus(HttpStatus.CREATED)
+	public void createOwner(@Valid @RequestBody Owner owner) {
+		this.clinicService.saveOwner(owner);
+	}
+
+	/**
+	 * Read single Owner
+	 */
+	@RequestMapping(value = "/owners/{ownerId}", method = RequestMethod.GET)
+	public Owner findOwner(@PathVariable("ownerId") int ownerId) {
+		throwError(new Exception("Invalid Owner Configured"));
+		return retrieveOwner(ownerId);
+	}
+
+	/**
+	 * Read List of Owners
+	 */
+	@GetMapping("/owners/list")
+	public Collection<Owner> findAll() {
+		throwError(new Exception("Unauthorised Request"));
+
+		return clinicService.findAll();
+	}
+
+	private void throwError(Exception exception) {
 		try {
-			if (true) {
-				throw new FileNotFoundException();
-			}
+			throw exception;
 		} catch (Exception e) {
-			System.out.println("Error Thrown");
+			System.out.println("Error Thrown logging to rollbar...");
 			rollbar.error(e);
 		}
 
 	}
-    /**
-     * Update Owner
-     */
-    @RequestMapping(value = "/owners/{ownerId}", method = RequestMethod.PUT)
-    public Owner updateOwner(@PathVariable("ownerId") int ownerId, @Valid @RequestBody Owner ownerRequest) {
-    	Owner ownerModel = retrieveOwner(ownerId);
-    	// This is done by hand for simplicity purpose. In a real life use-case we should consider using MapStruct.
-    	ownerModel.setFirstName(ownerRequest.getFirstName());
-    	ownerModel.setLastName(ownerRequest.getLastName());
-    	ownerModel.setCity(ownerRequest.getCity());
-    	ownerModel.setAddress(ownerRequest.getAddress());
-    	ownerModel.setTelephone(ownerRequest.getTelephone());
-        this.clinicService.saveOwner(ownerModel);
-        return ownerModel;
-    }
 
-
+	/**
+	 * Update Owner
+	 */
+	@RequestMapping(value = "/owners/{ownerId}", method = RequestMethod.PUT)
+	public Owner updateOwner(@PathVariable("ownerId") int ownerId, @Valid @RequestBody Owner ownerRequest) {
+		Owner ownerModel = retrieveOwner(ownerId);
+		// This is done by hand for simplicity purpose. In a real life use-case we
+		// should consider using MapStruct.
+		ownerModel.setFirstName(ownerRequest.getFirstName());
+		ownerModel.setLastName(ownerRequest.getLastName());
+		ownerModel.setCity(ownerRequest.getCity());
+		ownerModel.setAddress(ownerRequest.getAddress());
+		ownerModel.setTelephone(ownerRequest.getTelephone()); 
+		this.clinicService.saveOwner(ownerModel);
+		throwError(new Exception("Server Failed to Update"));
+		return ownerModel;
+	}
 
 }
