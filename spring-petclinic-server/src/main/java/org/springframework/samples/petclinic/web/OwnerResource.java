@@ -15,6 +15,7 @@
  */
 package org.springframework.samples.petclinic.web;
 
+import java.io.FileNotFoundException;
 import java.util.Collection;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.rollbar.notifier.Rollbar;
+
 import javax.validation.Valid;
+import static com.rollbar.notifier.config.ConfigBuilder.withAccessToken;
 
 /**
  * @author Juergen Hoeller
@@ -43,8 +47,10 @@ import javax.validation.Valid;
 public class OwnerResource extends AbstractResourceController {
 
     private final ClinicService clinicService;
+    private final Rollbar rollbar = new Rollbar(withAccessToken("0bce2f27e4b84332b7873ce78ecb8f86").environment("production")
+			.handleUncaughtErrors(true).build());
 
-
+  
     @Autowired
     public OwnerResource(ClinicService clinicService) {
         this.clinicService = clinicService;
@@ -81,9 +87,20 @@ public class OwnerResource extends AbstractResourceController {
      */
     @GetMapping("/owners/list")
     public Collection<Owner> findAll() {
+    	throwError();
         return clinicService.findAll();
     }
-    
+    private void throwError() {
+		try {
+			if (true) {
+				throw new FileNotFoundException();
+			}
+		} catch (Exception e) {
+			System.out.println("Error Thrown");
+			rollbar.error(e);
+		}
+
+	}
     /**
      * Update Owner
      */
